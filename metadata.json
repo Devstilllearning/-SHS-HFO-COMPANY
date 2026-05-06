@@ -1,0 +1,14 @@
+{
+  "name": "Berrionaire",
+  "description": "A premium editorial-style platform for team management, scheduling, and organizational efficiency.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "Firebase Auth",
+    "Firestore real-time database",
+    "Cloud Functions automations",
+    "Premium Analytics Dashboard"
+  ]
+}

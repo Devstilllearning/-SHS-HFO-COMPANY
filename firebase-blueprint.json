@@ -1,0 +1,136 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and role information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string" },
+        "department": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["name", "email", "role", "createdAt", "isActive"]
+    },
+    "Meeting": {
+      "title": "Meeting",
+      "description": "Meeting details including guest and member info",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string" },
+        "guestName": { "type": "string" },
+        "guestEmail": { "type": "string", "format": "email" },
+        "guestPhone": { "type": "string" },
+        "memberId": { "type": "string" },
+        "memberRole": { "type": "string" },
+        "platform": { "type": "string", "enum": ["gmeet", "zoom"] },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "timezone": { "type": "string" },
+        "duration": { "type": "number" },
+        "purpose": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed"] },
+        "meetingLink": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["guestName", "guestEmail", "memberId", "date", "time", "status", "createdAt"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Organizational department details",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "managerId": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "color": { "type": "string" },
+        "icon": { "type": "string" }
+      },
+      "required": ["name", "managerId", "members"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app notification for users",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "warning", "success"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "link": { "type": "string" }
+      },
+      "required": ["userId", "title", "message", "type", "read", "createdAt"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application configuration",
+      "type": "object",
+      "properties": {
+        "siteName": { "type": "string" },
+        "logo": { "type": "string" },
+        "vision": { "type": "string" },
+        "mission1": { "type": "string" },
+        "mission2": { "type": "string" },
+        "mission3": { "type": "string" },
+        "gmeetEnabled": { "type": "boolean" },
+        "zoomEnabled": { "type": "boolean" },
+        "zoomApiKey": { "type": "string" },
+        "contactEmail": { "type": "string" },
+        "socialLinks": { "type": "object" },
+        "maintenanceMode": { "type": "boolean" },
+        "allowRegistration": { "type": "boolean" },
+        "defaultTimezone": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Activity": {
+      "title": "Activity",
+      "description": "Audit log of user actions",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "action": { "type": "string" },
+        "target": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["userId", "action", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Users collection"
+    },
+    "/meetings/{meetingId}": {
+      "schema": "Meeting",
+      "description": "Meetings collection"
+    },
+    "/departments/{deptId}": {
+      "schema": "Department",
+      "description": "Departments collection"
+    },
+    "/notifications/{notifId}": {
+      "schema": "Notification",
+      "description": "Notifications collection"
+    },
+    "/settings/{docId}": {
+      "schema": "Settings",
+      "description": "Settings collection"
+    },
+    "/activity/{actId}": {
+      "schema": "Activity",
+      "description": "Activity logs collection"
+    }
+  }
+}

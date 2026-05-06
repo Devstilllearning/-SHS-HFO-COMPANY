@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+
+  --color-brand-purple: #fc5c65;
+  --color-brand-red: #ff3f34;
+  --color-brand-gold: #f78fb3;
+  --color-bg-light: #fff0f5;
+  --color-bg-dark: #2c000e;
+  --color-text-main: #2c000e;
+  --color-text-muted: #6B7280;
+
+  --radius-card: 16px;
+  --radius-input: 8px;
+  --radius-button: 8px;
+}
+
+@layer base {
+  body {
+    @apply font-sans text-text-main bg-bg-light antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight;
+  }
+}
+
+@layer components {
+  .premium-card {
+    @apply bg-white rounded-[16px] shadow-sm border border-gray-100 p-6 transition-all;
+  }
+
+  .premium-input {
+    @apply rounded-[8px] border border-gray-200 bg-bg-light px-4 py-3 focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20 outline-none transition-all;
+  }
+
+  .premium-button-primary {
+    @apply rounded-[8px] px-6 py-3 bg-brand-purple text-white font-bold transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-brand-purple/20;
+  }
+
+  .premium-button-gold {
+    @apply rounded-[8px] px-6 py-3 bg-brand-gold text-bg-dark font-bold transition-all active:scale-[0.98] hover:shadow-lg hover:shadow-brand-gold/20;
+  }
+
+  .sidebar-item {
+    @apply flex items-center space-x-3 px-4 py-3 rounded-[12px] transition-all cursor-pointer;
+  }
+
+  .sidebar-item-active {
+    @apply bg-white/10 text-brand-gold font-medium;
+  }
+}
+

@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function userId() {
+      return request.auth.uid;
+    }
+
+    function existingData() {
+      return resource.data;
+    }
+
+    function incomingData() {
+      return request.resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(userId())).data;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && 
+             (request.auth.token.email == "nataliariyadi37@gmail.com" ||
+             (exists(/databases/$(database)/documents/users/$(userId())) && 
+              getUserData().role == 'superadmin'));
+    }
+
+    function isCEO() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(userId())) && 
+             (getUserData().role == 'ceo' || getUserData().role == 'superadmin');
+    }
+
+    function isManager() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(userId())) && 
+             (getUserData().role == 'superadmin' || 
+              getUserData().role == 'ceo' || 
+              getUserData().role.matches('.*_manager$'));
+    }
+
+    // --- Collection: Users ---
+    match /users/{uid} {
+      function isValidUser(data) {
+        return data.name is string && data.name.size() <= 100 &&
+               data.email is string && data.email.size() <= 100 &&
+               data.role is string &&
+               data.isActive is bool;
+      }
+
+      // Public read for team page
+      allow read: if true;
+      
+      allow create: if isEmailVerified() && userId() == uid && 
+                       isValidUser(incomingData());
+      
+      allow update: if isSignedIn() && (
+        (userId() == uid && incomingData().diff(existingData()).affectedKeys().hasOnly(['name', 'bio', 'photoURL', 'lastLogin'])) ||
+        (userId() == uid && request.auth.token.email == 'nataliariyadi37@gmail.com' && incomingData().diff(existingData()).affectedKeys().hasOnly(['role', 'department', 'name', 'bio', 'photoURL', 'lastLogin'])) ||
+        isSuperAdmin() || isCEO()
+      );
+    }
+
+    // --- Collection: Meetings ---
+    match /meetings/{meetingId} {
+      function isValidMeeting(data) {
+        return data.guestName is string && data.guestName.size() <= 100 &&
+               data.guestEmail is string && data.guestEmail.size() <= 100 &&
+               data.memberId is string &&
+               data.status in ['pending', 'confirmed', 'cancelled', 'completed'];
+      }
+
+      // Member can read their own meetings
+      // Guest can read the meeting they just scheduled? 
+      // For simplicity in this demo, allow read if the memberId matches OR if it's a guest creating
+      allow list: if isSignedIn() && (existingData().memberId == userId() || isManager());
+      allow get: if true; // Allow anyone to see a specific meeting (for confirmation pages)
+
+      allow create: if true; // Anyone can schedule a meeting
+      
+      allow update: if isSignedIn() && (
+        (existingData().memberId == userId() && incomingData().diff(existingData()).affectedKeys().hasAny(['status', 'updatedAt', 'meetingLink'])) ||
+        isSuperAdmin() || isCEO() || isManager()
+      );
+      
+      allow delete: if isSuperAdmin() || isCEO();
+    }
+
+    // --- Collection: Departments ---
+    match /departments/{deptId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || isCEO();
+    }
+
+    // --- Collection: Notifications ---
+    match /notifications/{notifId} {
+      allow read, update, delete: if isSignedIn() && existingData().userId == userId();
+      allow create: if true; // Allow members and guests to notify others
+    }
+
+    // --- Collection: Settings ---
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || isCEO();
+    }
+
+    // --- Collection: Activity ---
+    match /activity/{actId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && incomingData().userId == userId();
+    }
+  }
+}
