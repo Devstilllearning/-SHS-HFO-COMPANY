@@ -46,7 +46,7 @@ export default function DashboardOverview() {
 
     // Fetch Stats
     const fetchStats = async () => {
-      const leadersSnap = await getDocs(query(collection(db, 'users'), where('role', 'in', ['superadmin', 'ceo', 'marketing_manager', 'secretary_manager', 'treasurer_manager', 'souvenir_manager', 'fb_manager'])));
+      const leadersSnap = await getDocs(query(collection(db, 'users'), where('role', 'in', ['superadmin', 'ceo', 'admin', 'marketing_manager', 'secretary_manager', 'treasurer_manager', 'souvenir_manager', 'fb_manager'])));
       const membersSnap = await getDocs(collection(db, 'users'));
       
       let meetingsQuery;

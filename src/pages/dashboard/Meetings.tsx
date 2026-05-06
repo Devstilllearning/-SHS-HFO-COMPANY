@@ -62,6 +62,14 @@ export default function MyMeetings() {
     return () => unsub();
   }, [user]);
 
+  const formatLink = (url: string) => {
+    if (!url || url === '#') return '#';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return `https://${url}`;
+    }
+    return url;
+  };
+
   const updateStatus = async (meeting: any, status: string, manualLink?: string) => {
     console.log('Update status called:', { meetingId: meeting.id, status, manualLink });
     try {
@@ -70,8 +78,10 @@ export default function MyMeetings() {
         updatedAt: serverTimestamp()
       };
       
-      if (manualLink) {
-        updates.meetingLink = manualLink;
+      const formattedLink = manualLink ? formatLink(manualLink) : null;
+      
+      if (formattedLink) {
+        updates.meetingLink = formattedLink;
       }
       
       console.log('Meeting update payload:', { meetingId: meeting.id, updates });
@@ -79,13 +89,19 @@ export default function MyMeetings() {
       try {
         await updateDoc(doc(db, 'meetings', meeting.id), updates);
         console.log('Update successful');
+        
+        // If the admin just set a link and it's confirm action, 
+        // they might want to "go to it" immediately as requested.
+        if (formattedLink && status === 'confirmed') {
+          window.open(formattedLink, '_blank');
+        }
       } catch (error) {
         console.error('Update failed. Error details:', error);
         handleFirestoreError(error, OperationType.UPDATE, 'meetings/' + meeting.id);
       }
       
       // Notify all users - only if meeting link is actually available
-      const finalLink = manualLink || meeting.meetingLink;
+      const finalLink = formattedLink || meeting.meetingLink;
       if (finalLink && finalLink !== '#') {
         try {
           const usersSnap = await getDocs(collection(db, 'users'));
@@ -303,11 +319,13 @@ export default function MyMeetings() {
                               <Copy className="w-4 h-4" />
                             </button>
                             <a 
-                              href={(meeting.platform === 'onsite' || !meeting.meetingLink || meeting.meetingLink === '#') ? '#' : meeting.meetingLink}
+                              href={formatLink(meeting.meetingLink)}
                               target={(meeting.platform === 'onsite' || !meeting.meetingLink || meeting.meetingLink === '#') ? '_self' : '_blank'}
                               rel="noreferrer"
                               onClick={(e) => {
-                                if (!meeting.meetingLink || meeting.meetingLink === '#') {
+                                if (meeting.platform === 'onsite') {
+                                  // No redirect needed
+                                } else if (!meeting.meetingLink || meeting.meetingLink === '#') {
                                   e.preventDefault();
                                   toast.error('Meeting link not set by admin yet');
                                 }
