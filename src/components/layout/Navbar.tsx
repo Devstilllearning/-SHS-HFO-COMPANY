@@ -13,8 +13,16 @@ export default function Navbar() {
         <div className="flex justify-between h-20 items-center">
           <div className="flex items-center space-x-3">
             <Link to="/" className="flex items-center space-x-3 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-brand-gold to-brand-red rounded-[8px] flex items-center justify-center font-serif text-2xl font-bold text-white shadow-lg shadow-brand-gold/20 group-hover:scale-110 transition-transform">
-                B
+              <div className="w-12 h-12 flex items-center justify-center transition-transform group-hover:scale-110">
+                <img 
+                  src="/logo.png" 
+                  alt="Berrionaire Logo" 
+                  className="w-full h-full object-contain drop-shadow-md"
+                  onError={(e) => {
+                    // Fallback if logo.png is missing
+                    e.currentTarget.src = 'https://api.iconify.design/noto:strawberry.svg';
+                  }}
+                />
               </div>
               <span className="text-2xl font-serif font-bold text-brand-gold tracking-tight">
                 Berrionaire
