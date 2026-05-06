@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { auth } from '../../firebase/config';
 import toast from 'react-hot-toast';
+import Logo from '../ui/Logo';
 
 export default function Sidebar() {
   const { profile, isAdmin, isCEO } = useAuth();
@@ -51,11 +52,8 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 h-screen w-[280px] bg-bg-dark flex flex-col justify-between py-8 px-6 text-white border-r border-brand-gold/20 z-50">
       <div className="space-y-10 overflow-y-auto hidden-scrollbar">
         <div className="flex items-center space-x-3 sticky top-0 bg-bg-dark z-10 pt-2 pb-4">
-          <Link to="/" className="w-10 h-10 bg-gradient-to-br from-brand-gold to-brand-red rounded-[8px] flex items-center justify-center font-serif text-2xl font-bold text-white shadow-lg shadow-brand-gold/20 hover:scale-110 transition-transform">
-            B
-          </Link>
           <Link to="/">
-            <h1 className="text-2xl font-serif tracking-tight text-brand-gold font-bold hover:opacity-80 transition-opacity">Berrionaire</h1>
+            <Logo showText size="sm" />
           </Link>
         </div>
 

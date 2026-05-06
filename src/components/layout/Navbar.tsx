@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/useNotifications';
-import { LogIn, User, LayoutDashboard, Settings, Bell } from 'lucide-react';
+import { Bell, LogIn, LayoutDashboard, Settings } from 'lucide-react';
+import Logo from '../ui/Logo';
 
 export default function Navbar() {
   const { user, isAdmin, isCEO } = useAuth();
@@ -12,21 +13,8 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20 items-center">
           <div className="flex items-center space-x-3">
-            <Link to="/" className="flex items-center space-x-3 group">
-              <div className="w-12 h-12 flex items-center justify-center transition-transform group-hover:scale-110">
-                <img 
-                  src="/logo.png" 
-                  alt="Berrionaire Logo" 
-                  className="w-full h-full object-contain drop-shadow-md"
-                  onError={(e) => {
-                    // Fallback if logo.png is missing
-                    e.currentTarget.src = 'https://api.iconify.design/noto:strawberry.svg';
-                  }}
-                />
-              </div>
-              <span className="text-2xl font-serif font-bold text-brand-gold tracking-tight">
-                Berrionaire
-              </span>
+            <Link to="/">
+              <Logo showText size="lg" />
             </Link>
           </div>
           

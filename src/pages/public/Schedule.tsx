@@ -27,16 +27,62 @@ import {
 import { useSettings } from '../../context/SettingsContext';
 import toast from 'react-hot-toast';
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: null, // Public page, no auth context readily available without adding more hooks
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  return new Error(JSON.stringify(errInfo));
+}
+
 export default function Schedule() {
   const { settings } = useSettings();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
   
+  const TIMEZONES = [
+    { label: 'UTC', value: 'UTC' },
+    { label: 'Jakarta (GMT+7)', value: 'Asia/Jakarta' },
+    { label: 'Singapore (GMT+8)', value: 'Asia/Singapore' },
+    { label: 'London (GMT+0)', value: 'Europe/London' },
+    { label: 'New York (GMT-5)', value: 'America/New_York' },
+    { label: 'Los Angeles (GMT-8)', value: 'America/Los_Angeles' },
+    { label: 'Tokyo (GMT+9)', value: 'Asia/Tokyo' },
+    { label: 'Sydney (GMT+11)', value: 'Australia/Sydney' },
+    { label: 'Dubai (GMT+4)', value: 'Asia/Dubai' },
+  ];
+  
   // Form State
   const [formData, setFormData] = useState({
     memberId: '',
     memberData: null as any,
+    departments: [] as string[],
     platform: 'gmeet',
     date: '',
     time: '',
@@ -48,6 +94,25 @@ export default function Schedule() {
     purpose: '',
     notes: ''
   });
+
+  const DEPARTMENTS = [
+    { id: 'mktg', name: 'Marketing', icon: 'Layers' },
+    { id: 'exec', name: 'Executive', icon: 'ShieldCheck' },
+    { id: 'secr', name: 'Secretary', icon: 'FileText' },
+    { id: 'trea', name: 'Treasurer', icon: 'Wallet' },
+    { id: 'souv', name: 'Souvenir', icon: 'Gift' },
+    { id: 'fb', name: 'F&B', icon: 'Coffee' },
+    { id: 'strat', name: 'Strategic Unit', icon: 'Target' }
+  ];
+
+  const toggleDepartment = (deptName: string) => {
+    setFormData(prev => {
+      const depts = prev.departments.includes(deptName)
+        ? prev.departments.filter(d => d !== deptName)
+        : [...prev.departments, deptName];
+      return { ...prev, departments: depts };
+    });
+  };
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -68,44 +133,59 @@ export default function Schedule() {
       
       const meetingData = {
         ...formData,
-        memberId: formData.memberId,
-        memberRole: formData.memberData?.role || 'Member',
+        memberId: 'unassigned',
+        memberRole: 'Multiple Departments',
         status: 'pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         meetingLink: generatedLink,
         date: formData.date,
-        time: formData.time
+        time: formData.time,
+        targetDepartments: formData.departments
       };
 
-      await addDoc(collection(db, 'meetings'), meetingData);
+      try {
+        await addDoc(collection(db, 'meetings'), meetingData);
+      } catch (error) {
+        throw handleFirestoreError(error, OperationType.WRITE, 'meetings');
+      }
       
-      await addDoc(collection(db, 'activity'), {
-        userId: formData.memberId,
-        userName: formData.guestName,
-        action: `requested a new booking with you`,
-        timestamp: serverTimestamp()
-      });
+      try {
+        await addDoc(collection(db, 'activity'), {
+          userId: 'system',
+          userName: formData.guestName,
+          action: `requested a new booking with ${formData.departments.join(', ')}`,
+          timestamp: serverTimestamp()
+        });
+      } catch (error) {
+        // Log but don't fail the whole booking if activity fails
+        console.error('Failed to log activity', error);
+      }
 
       // Send notification to all users
-      const usersSnap = await getDocs(collection(db, 'users'));
-      const notificationPromises = usersSnap.docs.map(userDoc => {
-        return addDoc(collection(db, 'notifications'), {
-          userId: userDoc.id,
-          title: 'New Meeting Request',
-          message: `${formData.guestName} wants to schedule a ${formData.platform} meeting on ${formData.date} at ${formData.time}. Awaiting link generation.`,
-          type: 'info',
-          read: false,
-          createdAt: serverTimestamp(),
-          link: '/dashboard/meetings'
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'));
+        const notificationPromises = usersSnap.docs.map(userDoc => {
+          return addDoc(collection(db, 'notifications'), {
+            userId: userDoc.id,
+            title: 'New Meeting Request',
+            message: `${formData.guestName} wants to schedule a ${formData.platform} meeting with ${formData.departments.join(', ')} on ${formData.date} at ${formData.time}.`,
+            type: 'info',
+            read: false,
+            createdAt: serverTimestamp(),
+            link: '/dashboard/meetings'
+          });
         });
-      });
-      await Promise.all(notificationPromises);
+        await Promise.all(notificationPromises);
+      } catch (error) {
+        console.error('Failed to send notifications', error);
+      }
 
       nextStep(); // Step 5: Confirmation
       toast.success('Meeting booked successfully!');
     } catch (error: any) {
-      toast.error('Booking failed: ' + error.message);
+      const displayMessage = error.message.startsWith('{') ? 'Permission Denied' : error.message;
+      toast.error('Booking failed: ' + displayMessage);
     } finally {
       setLoading(false);
     }
@@ -147,32 +227,42 @@ export default function Schedule() {
                   className="space-y-8"
                 >
                   <div className="text-center mb-12">
-                    <h2 className="text-4xl font-serif font-bold text-bg-dark">Select Your Partner</h2>
-                    <p className="text-text-muted mt-2">Choose a strategic leader for your coordination sesssion.</p>
+                    <h2 className="text-4xl font-serif font-bold text-bg-dark">Select Target Departments</h2>
+                    <p className="text-text-muted mt-2">Choose one or more departments for your coordination session.</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {members.map(member => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {DEPARTMENTS.map(dept => (
                       <div 
-                        key={member.id}
-                        onClick={() => {
-                          setFormData({ ...formData, memberId: member.id, memberData: member });
-                          nextStep();
-                        }}
+                        key={dept.id}
+                        onClick={() => toggleDepartment(dept.name)}
                         className={`bg-white p-6 rounded-[16px] shadow-sm border-2 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 flex items-center space-x-4 ${
-                          formData.memberId === member.id ? 'border-brand-gold bg-brand-gold/5 shadow-brand-gold/10' : 'border-transparent hover:border-brand-gold/20'
+                          formData.departments.includes(dept.name) ? 'border-brand-gold bg-brand-gold/5 shadow-brand-gold/10' : 'border-transparent hover:border-brand-gold/20'
                         }`}
                       >
-                        <div className="w-16 h-16 rounded-full bg-brand-purple flex items-center justify-center text-white text-xl font-bold shadow-md border-2 border-white">
-                          {member.photoURL ? <img src={member.photoURL} alt={member.name} className="w-full h-full object-cover rounded-full" /> : member.name?.charAt(0)}
+                        <div className={`w-12 h-12 rounded-[12px] flex items-center justify-center text-xl font-bold shadow-sm transition-colors ${
+                          formData.departments.includes(dept.name) ? 'bg-brand-gold text-bg-dark' : 'bg-bg-light text-brand-purple'
+                        }`}>
+                          {dept.name.charAt(0)}
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-bold text-lg text-bg-dark">{member.name}</h4>
-                          <p className="text-[10px] text-brand-gold font-bold uppercase tracking-widest">{member.role?.replace('_', ' ')}</p>
-                          <p className="text-xs text-text-muted mt-0.5">{member.department || 'Strategic Unit'}</p>
+                          <h4 className="font-bold text-lg text-bg-dark">{dept.name}</h4>
+                          <p className="text-[10px] text-brand-gold font-bold uppercase tracking-widest">Division</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-gray-300" />
+                        {formData.departments.includes(dept.name) && (
+                          <CheckCircle2 className="w-5 h-5 text-brand-gold" />
+                        )}
                       </div>
                     ))}
+                  </div>
+
+                  <div className="mt-12 flex justify-center">
+                    <button 
+                      onClick={nextStep}
+                      disabled={formData.departments.length === 0}
+                      className="bg-brand-purple text-white px-16 py-4 rounded-[8px] font-bold text-sm uppercase tracking-widest shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100"
+                    >
+                      Continue
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -242,9 +332,33 @@ export default function Schedule() {
                         onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                       />
                     </div>
+
                     <div className="bg-white p-8 rounded-[16px] shadow-sm border border-gray-100">
+                      <label className="block text-[10px] font-bold mb-4 uppercase tracking-widest text-gray-400">Communication Timezone</label>
+                      <div className="relative">
+                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-brand-gold" />
+                        <select
+                          className="w-full bg-bg-light p-4 pl-12 rounded-[12px] border border-gray-200 focus:border-brand-gold focus:ring-2 focus:ring-brand-gold/10 outline-none transition-all font-bold text-bg-dark appearance-none cursor-pointer"
+                          value={formData.timezone}
+                          onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
+                        >
+                          <optgroup label="System Default">
+                            <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>
+                              Local: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                            </option>
+                          </optgroup>
+                          <optgroup label="Common Timezones">
+                            {TIMEZONES.map(tz => (
+                              <option key={tz.value} value={tz.value}>{tz.label}</option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2 bg-white p-8 rounded-[16px] shadow-sm border border-gray-100">
                       <label className="block text-[10px] font-bold mb-4 uppercase tracking-widest text-gray-400">Tactical Slots</label>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-9 gap-3">
                         {['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'].map(t => (
                           <button
                             key={t}
@@ -350,7 +464,7 @@ export default function Schedule() {
                   </div>
                   <h2 className="text-4xl font-serif font-bold text-bg-dark mb-4 italic">Synchronization Initiated!</h2>
                   <p className="text-xl text-text-muted max-w-xl mx-auto mb-10 leading-relaxed">
-                    Your request to coordinate with <strong>{formData.memberData?.name}</strong> has been transmitted. Global notifications triggered.
+                    Your request to coordinate with <strong>{formData.departments.join(', ')}</strong> has been transmitted. Global notifications triggered.
                   </p>
                   
                   <div className="max-w-md mx-auto bg-white rounded-[24px] shadow-xl p-8 border border-gray-100 relative overflow-hidden">
@@ -401,16 +515,14 @@ export default function Schedule() {
                 
                 <div className="space-y-8 relative z-10">
                   <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-bg-light rounded-xl flex items-center justify-center font-bold text-brand-purple">
-                      {formData.memberData?.photoURL ? (
-                         <img src={formData.memberData.photoURL} alt="" className="w-full h-full object-cover rounded-xl" />
-                      ) : (
-                         <Users className="w-6 h-6" />
-                      )}
+                    <div className="w-12 h-12 bg-bg-light rounded-xl flex items-center justify-center font-bold text-brand-purple text-lg">
+                      {formData.departments.length > 0 ? formData.departments[0].charAt(0) : <Users className="w-6 h-6" />}
                     </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Primary Lead</label>
-                      <p className="font-bold text-bg-dark">{formData.memberData?.name || '---'}</p>
+                    <div className="flex-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block">Target Units</label>
+                      <p className="font-bold text-xs text-bg-dark truncate max-w-[180px]">
+                        {formData.departments.length > 0 ? formData.departments.join(', ') : '---'}
+                      </p>
                     </div>
                   </div>
                   

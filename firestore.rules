@@ -62,7 +62,10 @@ service cloud.firestore {
         return data.name is string && data.name.size() <= 100 &&
                data.email is string && data.email.size() <= 100 &&
                data.role is string &&
-               data.isActive is bool;
+               data.isActive is bool &&
+               (data.createdAt is timestamp || data.createdAt is string) &&
+               (data.get('bio', '') is string) &&
+               (data.get('department', '') is string);
       }
 
       // Public read for team page
@@ -71,9 +74,10 @@ service cloud.firestore {
       allow create: if isEmailVerified() && userId() == uid && 
                        isValidUser(incomingData());
       
-      allow update: if isSignedIn() && (
+      allow update: if isSignedIn() && isValidUser(incomingData()) && (
+        // Self-update limited fields
         (userId() == uid && incomingData().diff(existingData()).affectedKeys().hasOnly(['name', 'bio', 'photoURL', 'lastLogin'])) ||
-        (userId() == uid && request.auth.token.email == 'nataliariyadi37@gmail.com' && incomingData().diff(existingData()).affectedKeys().hasOnly(['role', 'department', 'name', 'bio', 'photoURL', 'lastLogin'])) ||
+        // Superadmin or CEO can update anything
         isSuperAdmin() || isCEO()
       );
     }
@@ -86,7 +90,9 @@ service cloud.firestore {
                data.memberId is string &&
                data.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
                (data.meetingLink is string || data.meetingLink == null) &&
-               (data.updatedAt is timestamp || data.updatedAt is float || data.updatedAt is int);
+               (data.updatedAt is timestamp || data.updatedAt is float || data.updatedAt is int) &&
+               (data.get('targetDepartments', []) is list) &&
+               (data.get('timezone', '') is string);
       }
 
       // Member can read their own meetings
@@ -126,7 +132,7 @@ service cloud.firestore {
     // --- Collection: Activity ---
     match /activity/{actId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && incomingData().userId == userId();
+      allow create: if true; // Allow guests and system to log activity
     }
   }
 }

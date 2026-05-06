@@ -3,6 +3,7 @@ import Navbar from '../../components/layout/Navbar';
 import { useSettings } from '../../context/SettingsContext';
 import { ArrowRight, Users, Lightbulb, ShieldCheck, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import Logo from '../../components/ui/Logo';
 
 export default function Home() {
   const { settings } = useSettings();
@@ -142,10 +143,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-10">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-20">
             <div className="col-span-2 space-y-10">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-brand-gold via-brand-red to-brand-purple rounded-lg transform rotate-45 shadow-lg" />
-                <h1 className="text-3xl font-serif font-bold tracking-widest">BERRIONAIRE</h1>
-              </div>
+              <Link to="/">
+                <Logo showText size="lg" />
+              </Link>
               <p className="text-purple-100/50 max-w-sm text-lg font-light leading-relaxed">
                 The definitive platform for organizational architecture and strategic global coordination.
               </p>

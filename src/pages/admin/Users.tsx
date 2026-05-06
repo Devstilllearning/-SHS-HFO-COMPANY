@@ -29,6 +29,23 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+
+  const ROLES = [
+    { value: 'superadmin', label: 'Superadmin' },
+    { value: 'ceo', label: 'CEO' },
+    { value: 'marketing_manager', label: 'Marketing Manager' },
+    { value: 'marketing_member', label: 'Marketing Member' },
+    { value: 'secretary_manager', label: 'Secretary Manager' },
+    { value: 'secretary_member', label: 'Secretary Member' },
+    { value: 'treasurer_manager', label: 'Treasurer Manager' },
+    { value: 'treasurer_member', label: 'Treasurer Member' },
+    { value: 'souvenir_manager', label: 'Souvenir Manager' },
+    { value: 'souvenir_member', label: 'Souvenir Member' },
+    { value: 'fb_manager', label: 'F&B Manager' },
+    { value: 'fb_member', label: 'F&B Member' },
+    { value: 'member', label: 'Member' },
+  ];
 
   useEffect(() => {
     const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
@@ -47,6 +64,18 @@ export default function AdminUsers() {
       toast.success(`User ${user.isActive ? 'deactivated' : 'activated'}`);
     } catch (error: any) {
       toast.error('Failed to update status');
+    }
+  };
+
+  const updateRole = async (userId: string, newRole: string) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        role: newRole
+      });
+      setEditingUser(null);
+      toast.success('Role updated successfully');
+    } catch (error: any) {
+      toast.error('Failed to update role');
     }
   };
 
@@ -140,10 +169,26 @@ export default function AdminUsers() {
                     </div>
                   </td>
                   <td className="px-6 py-5">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-purple/10 text-brand-purple uppercase tracking-tight">
-                      {user.role?.replace('_', ' ')}
-                    </span>
-                    <p className="text-xs text-text-muted mt-1 font-medium">{user.department || 'Unassigned'}</p>
+                    {editingUser === user.id ? (
+                      <select 
+                        value={user.role}
+                        onChange={(e) => updateRole(user.id, e.target.value)}
+                        onBlur={() => setEditingUser(null)}
+                        autoFocus
+                        className="text-xs font-bold bg-white border border-brand-purple rounded-md px-2 py-1 focus:outline-none ring-2 ring-brand-purple/20"
+                      >
+                        {ROLES.map(r => (
+                          <option key={r.value} value={r.value}>{r.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="flex flex-col">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-purple/10 text-brand-purple uppercase tracking-tight w-fit">
+                          {user.role?.replace('_', ' ')}
+                        </span>
+                        <p className="text-xs text-text-muted mt-1 font-medium">{user.department || 'Unassigned'}</p>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-5">
                     <button 
@@ -160,7 +205,11 @@ export default function AdminUsers() {
                   </td>
                   <td className="px-6 py-5 text-right">
                     <div className="flex justify-end space-x-2">
-                       <button className="p-2 text-text-muted hover:text-brand-purple hover:bg-purple-50 rounded-lg transition-all" title="Edit User">
+                       <button 
+                         onClick={() => setEditingUser(user.id)}
+                         className="p-2 text-text-muted hover:text-brand-purple hover:bg-purple-50 rounded-lg transition-all" 
+                         title="Edit Role"
+                       >
                          <Edit2 className="w-4 h-4" />
                        </button>
                        <button className="p-2 text-text-muted hover:text-brand-red hover:bg-red-50 rounded-lg transition-all" title="Delete User">
