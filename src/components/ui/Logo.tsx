@@ -1,5 +1,4 @@
 import React from 'react';
-import { cn } from '../../lib/utils';
 
 interface LogoProps {
   className?: string;
@@ -8,7 +7,7 @@ interface LogoProps {
   textColor?: 'dark' | 'light' | 'gold';
 }
 
-export default function Logo({ className, size = 'md', showText = false, textColor = 'gold' }: LogoProps) {
+export default function Logo({ className = '', size = 'md', showText = false, textColor = 'gold' }: LogoProps) {
   const sizes = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',
@@ -22,12 +21,13 @@ export default function Logo({ className, size = 'md', showText = false, textCol
     gold: 'text-brand-gold',
   };
 
+  const sizeClass = sizes[size] || sizes.md;
+  const colorClass = textColors[textColor] || textColors.gold;
+  const textSizeClass = size === 'sm' ? 'text-lg' : size === 'md' ? 'text-2xl' : 'text-3xl';
+
   return (
-    <div className={cn("flex items-center space-x-3 group cursor-pointer", className)}>
-      <div className={cn(
-        "flex items-center justify-center transition-transform group-hover:scale-110",
-        sizes[size]
-      )}>
+    <div className={`flex items-center space-x-3 group cursor-pointer ${className}`}>
+      <div className={`flex items-center justify-center transition-transform group-hover:scale-110 ${sizeClass}`}>
         <img 
           src="/logo.png" 
           alt="Berrionaire Logo" 
@@ -39,11 +39,7 @@ export default function Logo({ className, size = 'md', showText = false, textCol
         />
       </div>
       {showText && (
-        <span className={cn(
-          "font-serif font-bold tracking-tight",
-          size === 'sm' ? 'text-lg' : size === 'md' ? 'text-2xl' : 'text-3xl',
-          textColors[textColor]
-        )}>
+        <span className={`font-serif font-bold tracking-tight ${textSizeClass} ${colorClass}`}>
           Berrionaire
         </span>
       )}

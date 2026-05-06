@@ -3,7 +3,7 @@ import Navbar from '../../components/layout/Navbar';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { motion } from 'motion/react';
-import { Mail, Linkedin, Calendar, User, Briefcase } from 'lucide-react';
+import { Mail, Linkedin, Calendar, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Team() {
@@ -82,10 +82,6 @@ export default function Team() {
                     {member.role?.replace('_', ' ')}
                   </span>
                   <h3 className="text-3xl font-serif font-bold text-bg-dark mb-2 leading-tight">{member.name}</h3>
-                  <div className="flex items-center text-xs font-bold text-gray-400 uppercase tracking-tighter">
-                    <Briefcase className="w-3 h-3 mr-2 text-brand-purple" />
-                    {member.department || 'Executive Department'}
-                  </div>
                   
                   <div className="mt-8 pt-8 border-t border-gray-50">
                     <p className="text-sm text-text-muted mb-8 line-clamp-3 leading-relaxed italic opacity-80">

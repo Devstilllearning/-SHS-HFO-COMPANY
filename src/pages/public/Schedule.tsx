@@ -86,7 +86,7 @@ export default function Schedule() {
     platform: 'gmeet',
     date: '',
     time: '',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: (typeof Intl !== 'undefined' && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC',
     duration: 30,
     guestName: '',
     guestEmail: '',
@@ -343,9 +343,11 @@ export default function Schedule() {
                           onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
                         >
                           <optgroup label="System Default">
-                            <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>
-                              Local: {Intl.DateTimeFormat().resolvedOptions().timeZone}
-                            </option>
+                            {(typeof Intl !== 'undefined' && Intl.DateTimeFormat) && (
+                              <option value={Intl.DateTimeFormat().resolvedOptions().timeZone}>
+                                Local: {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                              </option>
+                            )}
                           </optgroup>
                           <optgroup label="Common Timezones">
                             {TIMEZONES.map(tz => (

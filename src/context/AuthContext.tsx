@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const isAdmin = profile?.role === 'superadmin' || profile?.role === 'ceo';
+  const isAdmin = profile?.role === 'superadmin' || profile?.role === 'ceo' || profile?.role === 'admin';
   const isCEO = profile?.role === 'ceo';
 
   return (

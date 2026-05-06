@@ -30,7 +30,7 @@ import { motion } from 'motion/react';
 import { format } from 'date-fns';
 
 export default function DashboardOverview() {
-  const { profile, user } = useAuth();
+  const { profile, user, isAdmin } = useAuth();
   const { unreadCount } = useNotifications();
   const [stats, setStats] = useState({
     totalLeaders: 0,
@@ -48,7 +48,15 @@ export default function DashboardOverview() {
     const fetchStats = async () => {
       const leadersSnap = await getDocs(query(collection(db, 'users'), where('role', 'in', ['superadmin', 'ceo', 'marketing_manager', 'secretary_manager', 'treasurer_manager', 'souvenir_manager', 'fb_manager'])));
       const membersSnap = await getDocs(collection(db, 'users'));
-      const myMeetingsSnap = await getDocs(query(collection(db, 'meetings'), where('memberId', '==', user.uid)));
+      
+      let meetingsQuery;
+      if (isAdmin) {
+        meetingsQuery = query(collection(db, 'meetings'));
+      } else {
+        meetingsQuery = query(collection(db, 'meetings'), where('memberId', '==', user.uid));
+      }
+      const myMeetingsSnap = await getDocs(meetingsQuery);
+      
       const deptSnap = await getDocs(query(collection(db, 'users'), where('department', '==', profile.department)));
 
       setStats({
@@ -61,13 +69,23 @@ export default function DashboardOverview() {
     fetchStats();
 
     // Upcoming Meetings Real-time
-    const qMeetings = query(
-      collection(db, 'meetings'),
-      where('memberId', '==', user.uid),
-      where('status', '==', 'confirmed'),
-      orderBy('date', 'asc'),
-      limit(5)
-    );
+    let qMeetings;
+    if (isAdmin) {
+      qMeetings = query(
+        collection(db, 'meetings'),
+        where('status', '==', 'confirmed'),
+        orderBy('date', 'asc'),
+        limit(5)
+      );
+    } else {
+      qMeetings = query(
+        collection(db, 'meetings'),
+        where('memberId', '==', user.uid),
+        where('status', '==', 'confirmed'),
+        orderBy('date', 'asc'),
+        limit(5)
+      );
+    }
     const unsubMeetings = onSnapshot(qMeetings, (snap) => {
       const meetings = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setUpcomingMeetings(meetings);

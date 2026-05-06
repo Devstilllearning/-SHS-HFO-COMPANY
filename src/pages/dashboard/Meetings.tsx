@@ -32,7 +32,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { generateMeetLink } from '../../utils/meet';
 
 export default function MyMeetings() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { settings } = useSettings();
   const [meetings, setMeetings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,11 +41,19 @@ export default function MyMeetings() {
   useEffect(() => {
     if (!user) return;
     
-    let q = query(
-      collection(db, 'meetings'),
-      where('memberId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
+    let q;
+    if (isAdmin) {
+      q = query(
+        collection(db, 'meetings'),
+        orderBy('createdAt', 'desc')
+      );
+    } else {
+      q = query(
+        collection(db, 'meetings'),
+        where('memberId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      );
+    }
 
     const unsub = onSnapshot(q, (snap) => {
       setMeetings(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -230,7 +238,7 @@ export default function MyMeetings() {
 
                     <div className="flex items-center justify-between pt-6 border-t border-gray-100">
                       <div className="flex space-x-2">
-                        {meeting.status === 'pending' && (
+                        {isAdmin && meeting.status === 'pending' && (
                           <button 
                             onClick={() => {
                               const link = window.prompt('Enter meeting link:');
@@ -242,7 +250,7 @@ export default function MyMeetings() {
                             <CheckCircle className="w-5 h-5" />
                           </button>
                         )}
-                        {meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
+                        {isAdmin && meeting.status !== 'cancelled' && meeting.status !== 'completed' && (
                           <button 
                             onClick={() => updateStatus(meeting, 'cancelled')}
                             className="bg-red-50 text-red-600 p-2.5 rounded-lg hover:bg-red-100 transition-all active:scale-95"
@@ -254,7 +262,7 @@ export default function MyMeetings() {
                       </div>
 
                       <div className="flex items-center space-x-3">
-                        {(!meeting.meetingLink || meeting.meetingLink === '#') ? (
+                        {isAdmin && (!meeting.meetingLink || meeting.meetingLink === '#') ? (
                           <button 
                             onClick={() => {
                               const link = window.prompt('Enter meeting link:');
@@ -268,20 +276,42 @@ export default function MyMeetings() {
                           </button>
                         ) : (
                           <>
+                            {isAdmin && (
+                              <button 
+                                onClick={() => {
+                                  const link = window.prompt('Update meeting link:', meeting.meetingLink);
+                                  if (link) updateStatus(meeting, meeting.status, link);
+                                }}
+                                className="p-2.5 text-brand-gold hover:text-brand-purple transition-all bg-brand-gold/10 rounded-lg border border-brand-gold/20"
+                                title="Edit Link"
+                              >
+                                <Video className="w-4 h-4" />
+                              </button>
+                            )}
                             <button 
                               className="p-2.5 text-text-muted hover:text-brand-purple transition-all bg-bg-light rounded-lg border border-gray-100"
                               onClick={() => {
-                                navigator.clipboard.writeText(meeting.meetingLink);
-                                toast.success('Link copied!');
+                                if (meeting.meetingLink && meeting.meetingLink !== '#') {
+                                  navigator.clipboard.writeText(meeting.meetingLink);
+                                  toast.success('Link copied!');
+                                } else {
+                                  toast.error('No link available yet');
+                                }
                               }}
                               title="Copy Meeting Link"
                             >
                               <Copy className="w-4 h-4" />
                             </button>
                             <a 
-                              href={meeting.platform === 'onsite' ? '#' : meeting.meetingLink}
-                              target={meeting.platform === 'onsite' ? '_self' : '_blank'}
+                              href={(meeting.platform === 'onsite' || !meeting.meetingLink || meeting.meetingLink === '#') ? '#' : meeting.meetingLink}
+                              target={(meeting.platform === 'onsite' || !meeting.meetingLink || meeting.meetingLink === '#') ? '_self' : '_blank'}
                               rel="noreferrer"
+                              onClick={(e) => {
+                                if (!meeting.meetingLink || meeting.meetingLink === '#') {
+                                  e.preventDefault();
+                                  toast.error('Meeting link not set by admin yet');
+                                }
+                              }}
                               className={`text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center space-x-2 shadow-lg active:scale-95 ${meeting.platform === 'onsite' ? 'bg-brand-purple hover:bg-fuchsia-700 shadow-fuchsia-500/20 px-8 cursor-default' : 'bg-bg-dark hover:bg-black shadow-bg-dark/10'}`}
                             >
                               <span>{meeting.platform === 'onsite' ? 'Location' : 'Open Link'}</span>
