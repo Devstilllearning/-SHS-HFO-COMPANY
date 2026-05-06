@@ -64,16 +64,8 @@ export default function Schedule() {
     setLoading(true);
     try {
       let generatedLink = '#';
-      if (formData.platform === 'gmeet') {
-        if (settings?.gmeetPersonalLink) {
-          generatedLink = settings.gmeetPersonalLink;
-        } else {
-          generatedLink = `https://meet.google.com/new`;
-        }
-      } else if (formData.platform === 'onsite') {
-        generatedLink = settings?.hqAddress || 'HQ Office, Meeting Room A';
-      }
-
+      // Link generation removed from here to be performed by admin in dashboard
+      
       const meetingData = {
         ...formData,
         memberId: formData.memberId,
@@ -81,7 +73,9 @@ export default function Schedule() {
         status: 'pending',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        meetingLink: generatedLink
+        meetingLink: generatedLink,
+        date: formData.date,
+        time: formData.time
       };
 
       await addDoc(collection(db, 'meetings'), meetingData);
@@ -99,7 +93,7 @@ export default function Schedule() {
         return addDoc(collection(db, 'notifications'), {
           userId: userDoc.id,
           title: 'New Meeting Request',
-          message: `${formData.guestName} wants to schedule a ${formData.platform} meeting on ${formData.date} at ${formData.time}.`,
+          message: `${formData.guestName} wants to schedule a ${formData.platform} meeting on ${formData.date} at ${formData.time}. Awaiting link generation.`,
           type: 'info',
           read: false,
           createdAt: serverTimestamp(),
@@ -201,7 +195,7 @@ export default function Schedule() {
                     ].map(platform => (
                       <div 
                         key={platform.id}
-                        onClick={() => { setFormData({ ...formData, platform: platform.id }); nextStep(); }}
+                        onClick={() => { setFormData({ ...formData, platform: platform.id }); }}
                         className={`bg-white rounded-[16px] border-2 cursor-pointer group transition-all p-10 text-center flex flex-col items-center hover:scale-[1.02] active:scale-95 ${
                           formData.platform === platform.id ? `border-brand-gold shadow-xl shadow-brand-gold/5` : 'border-transparent hover:border-gray-200'
                         }`}
@@ -210,19 +204,19 @@ export default function Schedule() {
                           <platform.icon className={`w-10 h-10 ${platform.color}`} />
                         </div>
                         <h3 className="text-2xl font-serif font-bold text-bg-dark mb-2">{platform.name}</h3>
-                        <p className="text-sm text-text-muted">High-fidelity strategic coordination.</p>
-                        <div className={`mt-8 px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${
-                          formData.platform === platform.id ? 'bg-brand-gold text-bg-dark border-brand-gold' : 'bg-bg-light text-gray-400 border-gray-100'
-                        }`}>
-                          {platform.tag}
-                        </div>
                       </div>
                     ))}
                   </div>
-                  <button onClick={prevStep} className="mt-12 flex items-center text-xs font-bold uppercase tracking-widest text-text-muted hover:text-brand-purple transition-all mx-auto">
-                    <ChevronLeft className="w-5 h-5 mr-1" />
-                    <span>Back to selection</span>
-                  </button>
+
+                  <div className="mt-12 flex justify-between max-w-2xl mx-auto">
+                    <button onClick={prevStep} className="flex items-center text-xs font-bold uppercase tracking-widest text-text-muted hover:text-brand-purple transition-all">
+                      <ChevronLeft className="w-5 h-5 mr-1" />
+                      <span>Back</span>
+                    </button>
+                    <button onClick={nextStep} className="bg-brand-purple text-white px-12 py-4 rounded-[8px] font-bold text-sm uppercase tracking-widest shadow-xl transition-all hover:scale-105 active:scale-95">
+                      Continue
+                    </button>
+                  </div>
                 </motion.div>
               )}
 

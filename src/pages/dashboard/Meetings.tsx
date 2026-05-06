@@ -9,9 +9,11 @@ import {
   orderBy,
   doc,
   updateDoc,
-  serverTimestamp
+  serverTimestamp,
+  getDocs,
+  addDoc
 } from 'firebase/firestore';
-import { db } from '../../firebase/config';
+import { db, auth } from '../../firebase/config';
 import { 
   Calendar, 
   Clock, 
@@ -27,6 +29,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 import { useSettings } from '../../context/SettingsContext';
+import { generateMeetLink } from '../../utils/meet';
 
 export default function MyMeetings() {
   const { user } = useAuth();
@@ -51,31 +54,96 @@ export default function MyMeetings() {
     return () => unsub();
   }, [user]);
 
-  const updateStatus = async (meeting: any, status: string) => {
+  const updateStatus = async (meeting: any, status: string, manualLink?: string) => {
+    console.log('Update status called:', { meetingId: meeting.id, status, manualLink });
     try {
       const updates: any = {
         status,
         updatedAt: serverTimestamp()
       };
       
-      if (!meeting.meetingLink || meeting.meetingLink === '#') {
-        if (meeting.platform === 'gmeet') {
-          if (settings?.gmeetPersonalLink) {
-            updates.meetingLink = settings.gmeetPersonalLink;
-          } else {
-            updates.meetingLink = `https://meet.google.com/new`;
-          }
-        } else if (meeting.platform === 'onsite') {
-          updates.meetingLink = settings?.hqAddress || 'HQ Office, Meeting Room A';
+      if (manualLink) {
+        updates.meetingLink = manualLink;
+      }
+      
+      console.log('Meeting update payload:', { meetingId: meeting.id, updates });
+
+      try {
+        await updateDoc(doc(db, 'meetings', meeting.id), updates);
+        console.log('Update successful');
+      } catch (error) {
+        console.error('Update failed. Error details:', error);
+        handleFirestoreError(error, OperationType.UPDATE, 'meetings/' + meeting.id);
+      }
+      
+      // Notify all users - only if meeting link is actually available
+      const finalLink = manualLink || meeting.meetingLink;
+      if (finalLink && finalLink !== '#') {
+        try {
+          const usersSnap = await getDocs(collection(db, 'users'));
+          const notificationPromises = usersSnap.docs.map(userDoc => {
+            return addDoc(collection(db, 'notifications'), {
+              userId: userDoc.id,
+              title: `Meeting ${status}!`,
+              message: `Meeting with ${meeting.guestName} is now ${status}. Link: ${finalLink}`,
+              type: 'info',
+              read: false,
+              createdAt: serverTimestamp(),
+              link: '/dashboard/meetings'
+            });
+          });
+          await Promise.all(notificationPromises);
+        } catch (error) {
+          console.error('Failed to send notifications', error);
+          // Don't throw here to avoid failing the main status update
         }
       }
-
-      await updateDoc(doc(db, 'meetings', meeting.id), updates);
-      toast.success(`Meeting ${status}`);
+      
+      toast.success(`Meeting ${status} updated`);
     } catch (error: any) {
-      toast.error('Operation failed');
+      console.error('Update status error:', error);
+      toast.error('Operation failed: ' + (error instanceof Error ? error.message : String(error)));
+      handleFirestoreError(error, OperationType.UPDATE, 'meetings/' + meeting.id);
     }
   };
+
+  const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+      },
+      operationType,
+      path
+    }
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    toast.error('Operation failed: ' + (error instanceof Error ? error.message : String(error)));
+    throw new Error(JSON.stringify(errInfo));
+  }
+
+  enum OperationType {
+    CREATE = 'create',
+    UPDATE = 'update',
+    DELETE = 'delete',
+    LIST = 'list',
+    GET = 'get',
+    WRITE = 'write',
+  }
+
+  interface FirestoreErrorInfo {
+    error: string;
+    operationType: OperationType;
+    path: string | null;
+    authInfo: {
+      userId?: string | null;
+      email?: string | null;
+      emailVerified?: boolean | null;
+      isAnonymous?: boolean | null;
+    }
+  }
 
   const filteredMeetings = meetings.filter(m => filter === 'all' || m.status === filter);
 
@@ -164,7 +232,10 @@ export default function MyMeetings() {
                       <div className="flex space-x-2">
                         {meeting.status === 'pending' && (
                           <button 
-                            onClick={() => updateStatus(meeting, 'confirmed')}
+                            onClick={() => {
+                              const link = window.prompt('Enter meeting link:');
+                              if (link) updateStatus(meeting, 'confirmed', link);
+                            }}
                             className="bg-green-600 text-white p-2.5 rounded-lg hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/20 transition-all active:scale-95"
                             title="Confirm Meeting"
                           >
@@ -185,12 +256,15 @@ export default function MyMeetings() {
                       <div className="flex items-center space-x-3">
                         {(!meeting.meetingLink || meeting.meetingLink === '#') ? (
                           <button 
-                            onClick={() => updateStatus(meeting, meeting.status)}
+                            onClick={() => {
+                              const link = window.prompt('Enter meeting link:');
+                              if (link) updateStatus(meeting, 'confirmed', link);
+                            }}
                             className="bg-brand-purple text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-fuchsia-700 transition-all flex items-center space-x-2 shadow-lg shadow-fuchsia-500/20 active:scale-95"
-                            title="Generate Meeting Link"
+                            title="Set Meeting Link"
                           >
                             <Video className="w-4 h-4" />
-                            <span>Generate Link</span>
+                            <span>Set Link</span>
                           </button>
                         ) : (
                           <>

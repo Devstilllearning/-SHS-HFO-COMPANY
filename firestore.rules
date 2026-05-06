@@ -84,7 +84,9 @@ service cloud.firestore {
         return data.guestName is string && data.guestName.size() <= 100 &&
                data.guestEmail is string && data.guestEmail.size() <= 100 &&
                data.memberId is string &&
-               data.status in ['pending', 'confirmed', 'cancelled', 'completed'];
+               data.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
+               (data.meetingLink is string || data.meetingLink == null) &&
+               (data.updatedAt is timestamp || data.updatedAt is float || data.updatedAt is int);
       }
 
       // Member can read their own meetings
@@ -95,8 +97,8 @@ service cloud.firestore {
 
       allow create: if true; // Anyone can schedule a meeting
       
-      allow update: if isSignedIn() && (
-        (existingData().memberId == userId() && incomingData().diff(existingData()).affectedKeys().hasAny(['status', 'updatedAt', 'meetingLink'])) ||
+      allow update: if isSignedIn() && isValidMeeting(incomingData()) && (
+        (existingData().memberId == userId() && incomingData().diff(existingData()).affectedKeys().hasOnly(['status', 'updatedAt', 'meetingLink'])) ||
         isSuperAdmin() || isCEO() || isManager()
       );
       
